@@ -6,6 +6,9 @@ from typing import Any
 import litellm
 from litellm import acompletion
 
+import json
+from loguru import logger
+
 from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
 
 
@@ -68,8 +71,7 @@ class LiteLLMProvider(LLMProvider):
         if api_key:
             litellm.api_key = api_key
 
-
-
+        print(f"litellm.api_base={litellm.api_base},litellm.api_key={litellm.api_key},default_model:{default_model}")
         # Disable LiteLLM logging noise
         litellm.suppress_debug_info = True
     
@@ -96,7 +98,6 @@ class LiteLLMProvider(LLMProvider):
         """
         #print("=== 使用修改后的litellm_provider.py2 ===")
         model = model or self.default_model
-        print(f"litellm.api_base={litellm.api_base},litellm.api_key={litellm.api_key},model:{model}")
 
         # For OpenRouter, prefix model name if not already prefixed
         if self.is_openrouter and not model.startswith("openrouter/"):
@@ -140,8 +141,36 @@ class LiteLLMProvider(LLMProvider):
             kwargs["tool_choice"] = "auto"
         
         try:
+            # 在 chat 方法内，调用 acompletion 前记录请求
+            logger.debug("LLM Request: {}", json.dumps({
+                "model": model,
+                "messages": messages,
+                "tools": tools,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }, ensure_ascii=False, indent=2))
+
             response = await acompletion(**kwargs)
-            return self._parse_response(response)
+
+            # 记录原始响应（解析前）
+            logger.debug("LLM Raw Response: {}", json.dumps(
+                response.model_dump(exclude_none=True) if hasattr(response, "model_dump") else str(response),
+                ensure_ascii=False, indent=2
+            ))
+
+            parsed = self._parse_response(response)
+
+            # 记录解析后响应（便于阅读）
+            logger.debug("LLM Parsed Response: {}", json.dumps({
+                "content": parsed.content,
+                "tool_calls": [
+                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                    for tc in parsed.tool_calls
+                ],
+                "finish_reason": parsed.finish_reason,
+                "usage": parsed.usage,
+            }, ensure_ascii=False, indent=2))
+            return parsed
         except Exception as e:
             # Return error as content for graceful handling
             return LLMResponse(
