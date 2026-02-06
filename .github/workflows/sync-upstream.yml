@@ -2,7 +2,7 @@ name: Auto Sync Fork
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # UTC时间18点 = 北京时间凌晨2点
+    - cron: '0 1 * * *'
   workflow_dispatch:
 
 jobs:
@@ -51,16 +51,28 @@ jobs:
         run: git push origin main
 
       - name: Send DingTalk Notification
-        uses: pipizhang/dingtalk-webhook-action@v1.0.0
-        with:
-          webhook: ${{ secrets.DINGTALK_WEBHOOK }}
-          secret: ${{ secrets.DINGTALK_SECRET }}
-          type: 'text'
-          content: |
-            🚀 GitHub 同步完成通知
-            -------------------------
-            仓库: ${{ github.repository }}
-            状态: ${{ job.status }}
-            时间: ${{ steps.merge.outputs.has_updates == 'true' && '有更新已同步' || '无新更新' }}
-            运行ID: ${{ github.run_id }}
-            详情: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        if: always()
+        run: |
+          # 使用 curl 发送钉钉通知（最可靠的方法）
+          CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S")
+          
+          if [ "${{ job.status }}" == "success" ]; then
+            if [ "${{ steps.merge.outputs.has_updates }}" == "true" ]; then
+              RESULT="✅ 有新的更新已同步"
+            else
+              RESULT="ℹ️ 暂无新更新，保持同步"
+            fi
+          else
+            RESULT="❌ 同步失败，请检查日志"
+          fi
+          
+          # 发送请求
+          curl -X POST \
+            "${{ secrets.DINGTALK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "text",
+              "text": {
+                "content": "GitHub同步通知\n仓库: ${{ github.repository }}\n状态: ${{ job.status }}\n结果: '"$RESULT"'\n时间: '"$CURRENT_TIME"'\n详情: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }
+            }'
