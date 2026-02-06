@@ -31,15 +31,22 @@ class LiteLLMProvider(LLMProvider):
             (api_key and api_key.startswith("sk-or-")) or
             (api_base and "openrouter" in api_base)
         )
-        
+        self.is_siliconflow = (
+            (api_base and "siliconflow" in api_base)
+        )
         # Track if using custom endpoint (vLLM, etc.)
-        self.is_vllm = bool(api_base) and not self.is_openrouter
+        self.is_vllm = bool(api_base) and not self.is_openrouter and not self.is_siliconflow
         
         # Configure LiteLLM based on provider
         if api_key:
             if self.is_openrouter:
                 # OpenRouter mode - set key
                 os.environ["OPENROUTER_API_KEY"] = api_key
+            elif self.is_siliconflow:
+                # vLLM/custom endpoint - uses OpenAI-compatible API
+                print(f"is_vllm:{self.is_vllm},is_siliconflow:{self.is_siliconflow},apikey:{api_key},apibase:{api_base}")
+                os.environ["OPENAI_API_BASE"] = api_base
+                os.environ["OPENAI_API_KEY"] = api_key
             elif self.is_vllm:
                 # vLLM/custom endpoint - uses OpenAI-compatible API
                 os.environ["OPENAI_API_KEY"] = api_key
@@ -58,7 +65,11 @@ class LiteLLMProvider(LLMProvider):
         
         if api_base:
             litellm.api_base = api_base
-        
+        if api_key:
+            litellm.api_key = api_key
+
+
+
         # Disable LiteLLM logging noise
         litellm.suppress_debug_info = True
     
@@ -83,8 +94,10 @@ class LiteLLMProvider(LLMProvider):
         Returns:
             LLMResponse with content and/or tool calls.
         """
+        #print("=== 使用修改后的litellm_provider.py2 ===")
         model = model or self.default_model
-        
+        print(f"litellm.api_base={litellm.api_base},litellm.api_key={litellm.api_key},model:{model}")
+
         # For OpenRouter, prefix model name if not already prefixed
         if self.is_openrouter and not model.startswith("openrouter/"):
             model = f"openrouter/{model}"
@@ -102,7 +115,9 @@ class LiteLLMProvider(LLMProvider):
         # Convert openai/ prefix to hosted_vllm/ if user specified it
         if self.is_vllm:
             model = f"hosted_vllm/{model}"
-        
+        if self.is_siliconflow:
+            model = f"openai/{model}"
+
         # For Gemini, ensure gemini/ prefix if not already present
         if "gemini" in model.lower() and not model.startswith("gemini/"):
             model = f"gemini/{model}"
@@ -117,7 +132,9 @@ class LiteLLMProvider(LLMProvider):
         # Pass api_base directly for custom endpoints (vLLM, etc.)
         if self.api_base:
             kwargs["api_base"] = self.api_base
-        
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"

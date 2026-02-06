@@ -15,3 +15,8 @@ docs/
 *.pyzz
 .venv/
 __pycache__/
+
+*.pyzzvenv/
+venv/
+.idea/
+nanobot/.idea
