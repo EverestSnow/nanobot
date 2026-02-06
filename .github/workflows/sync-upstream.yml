@@ -2,7 +2,7 @@ name: Auto Sync Fork
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 修正：UTC时间18点 = 北京时间凌晨2点
+    - cron: '0 1 * * *'  # UTC时间18点 = 北京时间凌晨2点
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}  # 添加token确保推送权限
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Git
         run: |
@@ -33,14 +33,34 @@ jobs:
         run: git fetch upstream
 
       - name: Merge upstream changes
+        id: merge
         run: |
           git checkout main
-          # 检查是否有更新
           if git merge-base --is-ancestor upstream/main main; then
             echo "No new changes to merge"
+            echo "has_updates=false" >> $GITHUB_OUTPUT
             exit 0
+          else
+            echo "Merging new changes"
+            git merge upstream/main --no-edit --strategy-option theirs
+            echo "has_updates=true" >> $GITHUB_OUTPUT
           fi
-          git merge upstream/main --no-edit --strategy-option theirs
 
       - name: Push changes
+        if: steps.merge.outputs.has_updates == 'true'
         run: git push origin main
+
+      - name: Send DingTalk Notification
+        uses: pipizhang/dingtalk-webhook-action@v1.0.0
+        with:
+          webhook: ${{ secrets.DINGTALK_WEBHOOK }}
+          secret: ${{ secrets.DINGTALK_SECRET }}
+          type: 'text'
+          content: |
+            🚀 GitHub 同步完成通知
+            -------------------------
+            仓库: ${{ github.repository }}
+            状态: ${{ job.status }}
+            时间: ${{ steps.merge.outputs.has_updates == 'true' && '有更新已同步' || '无新更新' }}
+            运行ID: ${{ github.run_id }}
+            详情: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
