@@ -282,6 +282,24 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
+
+    # siliconflow: LiteLLM recognizes "gpt-*" natively, no prefix needed.
+    ProviderSpec(
+        name="siliconflow",
+        keywords=("siliconflow",),
+        env_key="OPENAI_API_KEY",
+        display_name="siliconflow",
+        litellm_prefix="openai",
+        skip_prefixes=(),
+        env_extras=(),
+        is_gateway=True,
+        is_local=False,
+        detect_by_key_prefix="",
+        detect_by_base_keyword="siliconflow",
+        default_api_base="",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
 )
 
 
