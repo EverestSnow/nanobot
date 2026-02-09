@@ -420,6 +420,7 @@ def agent(
     
     bus = MessageBus()
     provider = _make_provider(config)
+    print(f"llm provider {provider.api_base},{provider.default_model}")
     
     agent_loop = AgentLoop(
         bus=bus,
