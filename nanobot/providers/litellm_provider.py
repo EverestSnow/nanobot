@@ -10,6 +10,8 @@ from litellm import acompletion
 from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
 from nanobot.providers.registry import find_by_model, find_gateway
 
+from nanobot.providers.llm_logger import logged_acompletion
+
 
 class LiteLLMProvider(LLMProvider):
     """
@@ -145,7 +147,7 @@ class LiteLLMProvider(LLMProvider):
             kwargs["tool_choice"] = "auto"
         
         try:
-            response = await acompletion(**kwargs)
+            response = await logged_acompletion(**kwargs)
             return self._parse_response(response)
         except Exception as e:
             # Return error as content for graceful handling
