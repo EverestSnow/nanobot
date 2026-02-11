@@ -28,8 +28,11 @@ async def logged_acompletion(**kwargs: Any) -> Any:
         # Truncate message content for logging
         "messages_preview": [
             {"role": msg["role"],
-             "content": msg["content"][:100] + "..." if len(msg.get("content", "")) > 100 else msg["content"]}
-            for msg in kwargs.get("messages", [])[:3]  # Log first 3 messages
+             # "content": msg["content"][:100] + "..." if len(msg.get("content", "")) > 100 else msg["content"]
+             "content": msg["content"]
+             }
+            for msg in kwargs.get("messages", [])  # Log first 3 messages
+            # for msg in kwargs.get("messages", [])[:3]  # Log first 3 messages
         ]
     }
 

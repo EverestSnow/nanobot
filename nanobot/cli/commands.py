@@ -454,7 +454,7 @@ def agent(
         logger.enable("nanobot")
     else:
         logger.disable("nanobot")
-    print(f"llm provider {provider.api_base},{provider.default_model}")
+    print(f"llm provider {provider.api_base},{provider.default_model},logs:{logs}")
 
     agent_loop = AgentLoop(
         bus=bus,
