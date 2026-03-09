@@ -20,6 +20,7 @@
 
 ## 📢 News
 
+- **2026-03-08** 🚀 Released **v0.1.4.post4** — a reliability-packed release with safer defaults, better multi-instance support, sturdier MCP, and major channel and provider improvements. Please see [release notes](https://github.com/HKUDS/nanobot/releases/tag/v0.1.4.post4) for details.
 - **2026-03-07** 🚀 Azure OpenAI provider, WhatsApp media, QQ group chats, and more Telegram/Feishu polish.
 - **2026-03-06** 🪄 Lighter providers, smarter media handling, and sturdier memory and CLI compatibility.
 - **2026-03-05** ⚡️ Telegram draft streaming, MCP SSE support, and broader channel reliability fixes.
@@ -120,6 +121,29 @@ uv tool install nanobot-ai
 
 ```bash
 pip install nanobot-ai
+```
+
+### Update to latest version
+
+**PyPI / pip**
+
+```bash
+pip install -U nanobot-ai
+nanobot --version
+```
+
+**uv**
+
+```bash
+uv tool upgrade nanobot-ai
+nanobot --version
+```
+
+**Using WhatsApp?** Rebuild the local bridge after upgrading:
+
+```bash
+rm -rf ~/.nanobot/bridge
+nanobot channels login
 ```
 
 ## 🚀 Quick Start
@@ -374,7 +398,7 @@ pip install nanobot-ai[matrix]
 
 | Option | Description |
 |--------|-------------|
-| `allowFrom` | User IDs allowed to interact. Empty = all senders. |
+| `allowFrom` | User IDs allowed to interact. Empty denies all; use `["*"]` to allow everyone. |
 | `groupPolicy` | `open` (default), `mention`, or `allowlist`. |
 | `groupAllowFrom` | Room allowlist (used when policy is `allowlist`). |
 | `allowRoomMentions` | Accept `@room` mentions in mention mode. |
@@ -428,7 +452,7 @@ nanobot gateway
 ```
 
 > WhatsApp bridge updates are not applied automatically for existing installations.
-> If you upgrade nanobot and need the latest WhatsApp bridge, run:
+> After upgrading nanobot, rebuild the local bridge with:
 > `rm -rf ~/.nanobot/bridge && nanobot channels login`
 
 </details>
@@ -722,6 +746,12 @@ nanobot provider login openai-codex
 **3. Chat:**
 ```bash
 nanobot agent -m "Hello!"
+
+# Target a specific workspace/config locally
+nanobot agent -c ~/.nanobot-telegram/config.json -m "Hello!"
+
+# One-off workspace override on top of that config
+nanobot agent -c ~/.nanobot-telegram/config.json -w /tmp/nanobot-telegram-test -m "Hello!"
 ```
 
 > Docker users: use `docker run -it` for interactive OAuth login.
@@ -894,13 +924,13 @@ MCP tools are automatically discovered and registered on startup. The LLM can us
 
 > [!TIP]
 > For production deployments, set `"restrictToWorkspace": true` in your config to sandbox the agent.
-> **Change in source / post-`v0.1.4.post3`:** In `v0.1.4.post3` and earlier, an empty `allowFrom` means "allow all senders". In newer versions (including building from source), **empty `allowFrom` denies all access by default**. To allow all senders, set `"allowFrom": ["*"]`.
+> In `v0.1.4.post3` and earlier, an empty `allowFrom` allowed all senders. Since `v0.1.4.post4`, empty `allowFrom` denies all access by default. To allow all senders, set `"allowFrom": ["*"]`.
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `tools.restrictToWorkspace` | `false` | When `true`, restricts **all** agent tools (shell, file read/write/edit, list) to the workspace directory. Prevents path traversal and out-of-scope access. |
 | `tools.exec.pathAppend` | `""` | Extra directories to append to `PATH` when running shell commands (e.g. `/usr/sbin` for `ufw`). |
-| `channels.*.allowFrom` | `[]` (allow all) | Whitelist of user IDs. Empty = allow everyone; non-empty = only listed users can interact. |
+| `channels.*.allowFrom` | `[]` (deny all) | Whitelist of user IDs. Empty denies all; use `["*"]` to allow everyone. |
 
 
 ## 🧩 Multiple Instances
@@ -923,6 +953,18 @@ nanobot gateway --config ~/.nanobot-feishu/config.json --port 18792
 ### Path Resolution
 
 When using `--config`, nanobot derives its runtime data directory from the config file location. The workspace still comes from `agents.defaults.workspace` unless you override it with `--workspace`.
+
+To open a CLI session against one of these instances locally:
+
+```bash
+nanobot agent -c ~/.nanobot-telegram/config.json -m "Hello from Telegram instance"
+nanobot agent -c ~/.nanobot-discord/config.json -m "Hello from Discord instance"
+
+# Optional one-off workspace override
+nanobot agent -c ~/.nanobot-telegram/config.json -w /tmp/nanobot-telegram-test
+```
+
+> `nanobot agent` starts a local CLI agent using the selected workspace/config. It does not attach to or proxy through an already running `nanobot gateway` process.
 
 | Component | Resolved From | Example |
 |-----------|---------------|---------|
@@ -998,6 +1040,8 @@ nanobot gateway --config ~/.nanobot-telegram/config.json --workspace /tmp/nanobo
 |---------|-------------|
 | `nanobot onboard` | Initialize config & workspace |
 | `nanobot agent -m "..."` | Chat with the agent |
+| `nanobot agent -w <workspace>` | Chat against a specific workspace |
+| `nanobot agent -w <workspace> -c <config>` | Chat against a specific workspace/config |
 | `nanobot agent` | Interactive chat mode |
 | `nanobot agent --no-markdown` | Show plain-text replies |
 | `nanobot agent --logs` | Show runtime logs during chat |
